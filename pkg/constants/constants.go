@@ -56,8 +56,10 @@ const (
 	Dockerignore = ".dockerignore"
 
 	// S3 Custom endpoint ENV name
-	S3EndpointEnv    = "S3_ENDPOINT"
-	S3ForcePathStyle = "S3_FORCE_PATH_STYLE"
+	S3EndpointEnv     = "S3_ENDPOINT"
+	S3ForcePathStyle  = "S3_FORCE_PATH_STYLE"
+	S3StaticAccessKey = "S3_STATIC_ACCESS_KEYID"
+	S3StaticSecret    = "S3_STATIC_ACCESS_SECRET"
 )
 
 // ScratchEnvVars are the default environment variables needed for a scratch image.
