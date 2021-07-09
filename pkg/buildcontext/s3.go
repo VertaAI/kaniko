@@ -24,6 +24,7 @@ import (
 	"github.com/GoogleContainerTools/kaniko/pkg/constants"
 	"github.com/GoogleContainerTools/kaniko/pkg/util"
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
@@ -49,6 +50,8 @@ func (s *S3) UnpackTarFromBuildContext() (string, error) {
 		option.Config = aws.Config{
 			Endpoint:         aws.String(endpoint),
 			S3ForcePathStyle: aws.Bool(forcePath),
+			DisableSSL:       aws.Bool(true),
+			Credentials:      credentials.NewStaticCredentials(os.Getenv(constants.S3StaticAccessKey), os.Getenv(constants.S3StaticSecret), ""),
 		}
 	}
 	sess, err := session.NewSessionWithOptions(option)
