@@ -65,8 +65,8 @@ func (s *S3) UnpackTarFromBuildContext() (string, error) {
 	if os.Getenv(constants.S3Host) != "" {
 		sig := signer.NewSigner(credentials.NewStaticCredentials(os.Getenv(constants.S3StaticAccessKey), os.Getenv(constants.S3StaticSecret), ""))
 
-		s3Client.Handlers.Sign.Clear()
-		s3Client.Handlers.Sign.PushFront(func(request *request.Request) {
+		//s3Client.Handlers.Sign.Clear()
+		s3Client.Handlers.Sign.PushBack(func(request *request.Request) {
 			originalHost := request.HTTPRequest.Host
 			originalHost2 := request.HTTPRequest.URL.Host
 			defer func() {
