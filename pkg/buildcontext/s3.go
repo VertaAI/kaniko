@@ -18,9 +18,11 @@ package buildcontext
 
 import (
 	"fmt"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	kConfig "github.com/GoogleContainerTools/kaniko/pkg/config"
 	"github.com/GoogleContainerTools/kaniko/pkg/constants"
@@ -29,6 +31,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
+	signer "github.com/aws/aws-sdk-go/aws/signer/v4"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 )
@@ -65,7 +68,34 @@ func (s *S3) UnpackTarFromBuildContext() (string, error) {
 	if err != nil {
 		return bucket, err
 	}
-	downloader := s3manager.NewDownloader(sess)
+
+	s3Client := s3.New(sess)
+	if os.Getenv(constants.S3Host) != "" {
+		sig := signer.NewSigner(credentials.NewStaticCredentials(os.Getenv(constants.S3StaticAccessKey), os.Getenv(constants.S3StaticSecret), ""))
+
+		s3Client.Handlers.Sign.Clear()
+		s3Client.Handlers.Sign.PushFront(func(request *request.Request) {
+			originalHost := request.HTTPRequest.Host
+			originalHost2 := request.HTTPRequest.URL.Host
+			defer func() {
+				request.HTTPRequest.Host = originalHost
+				request.HTTPRequest.URL.Host = originalHost2
+			}()
+			request.HTTPRequest.Host = os.Getenv(constants.S3Host)
+			request.HTTPRequest.URL.Host = os.Getenv(constants.S3Host)
+			region := "us-east-1"
+			if os.Getenv("AWS_REGION") != "" {
+				region = os.Getenv("AWS_REGION")
+			}
+			t := time.Now()
+			_, err := sig.Sign(request.HTTPRequest, request.Body, "s3", region, t)
+			if err != nil {
+				panic(err)
+				return
+			}
+		})
+	}
+	downloader := s3manager.NewDownloaderWithClient(s3Client)
 	directory := kConfig.BuildContextDir
 	tarPath := filepath.Join(directory, constants.ContextTar)
 	if err := os.MkdirAll(directory, 0750); err != nil {
