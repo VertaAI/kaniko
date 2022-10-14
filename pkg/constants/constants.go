@@ -20,26 +20,14 @@ const (
 	// RootDir is the path to the root directory
 	RootDir = "/"
 
-	//KanikoDir is the path to the Kaniko directory
-	KanikoDir = "/kaniko"
-
 	IgnoreListPath = "/proc/self/mountinfo"
+
+	DefaultKanikoPath = "/kaniko"
 
 	Author = "kaniko"
 
-	// DockerfilePath is the path the Dockerfile is copied to
-	DockerfilePath = "/kaniko/Dockerfile"
-
 	// ContextTar is the default name of the tar uploaded to GCS buckets
 	ContextTar = "context.tar.gz"
-
-	// BuildContextDir is the directory a build context will be unpacked into,
-	// for example, a tarball from a GCS bucket will be unpacked here
-	BuildContextDir = "/kaniko/buildcontext/"
-
-	// KanikoIntermediateStagesDir is where we will store intermediate stages
-	// as tarballs in case they are needed later on
-	KanikoIntermediateStagesDir = "/kaniko/stages"
 
 	// Various snapshot modes:
 	SnapshotModeTime = "time"
@@ -68,16 +56,20 @@ const (
 	Dockerignore = ".dockerignore"
 
 	// S3 Custom endpoint ENV name
-	S3EndpointEnv    = "S3_ENDPOINT"
-	S3ForcePathStyle = "S3_FORCE_PATH_STYLE"
+	S3EndpointEnv     = "S3_ENDPOINT"
+	S3ForcePathStyle  = "S3_FORCE_PATH_STYLE"
+	S3StaticAccessKey = "S3_STATIC_ACCESS_KEYID"
+	S3StaticSecret    = "S3_STATIC_ACCESS_SECRET"
+	S3Host            = "S3_HOST"
 )
 
 // ScratchEnvVars are the default environment variables needed for a scratch image.
 var ScratchEnvVars = []string{"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"}
 
 // AzureBlobStorageHostRegEx is ReqEX for Valid azure blob storage host suffix in url for AzureCloud, AzureChinaCloud, AzureGermanCloud and AzureUSGovernment
-var AzureBlobStorageHostRegEx = []string{"https://(.+?).blob.core.windows.net/(.+)",
-	"https://(.+?).blob.core.chinacloudapi.cn/(.+)",
-	"https://(.+?).blob.core.cloudapi.de/(.+)",
-	"https://(.+?).blob.core.usgovcloudapi.net/(.+)",
+var AzureBlobStorageHostRegEx = []string{
+	"https://(.+?)\\.blob\\.core\\.windows\\.net/(.+)",
+	"https://(.+?)\\.blob\\.core\\.chinacloudapi\\.cn/(.+)",
+	"https://(.+?)\\.blob\\.core\\.cloudapi\\.de/(.+)",
+	"https://(.+?)\\.blob\\.core\\.usgovcloudapi\\.net/(.+)",
 }

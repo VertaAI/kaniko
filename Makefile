@@ -14,7 +14,7 @@
 
 # Bump these on release
 VERSION_MAJOR ?= 1
-VERSION_MINOR ?= 6
+VERSION_MINOR ?= 9
 VERSION_BUILD ?= 0
 
 VERSION ?= v$(VERSION_MAJOR).$(VERSION_MINOR).$(VERSION_BUILD)
@@ -53,9 +53,10 @@ out/executor: $(GO_FILES)
 out/warmer: $(GO_FILES)
 	GOARCH=$(GOARCH) GOOS=linux CGO_ENABLED=0 go build -ldflags $(GO_LDFLAGS) -o $@ $(WARMER_PACKAGE)
 
-.PHONY: travis-setup
-travis-setup:
-	@ ./scripts/travis-setup.sh
+.PHONY: install-container-diff
+install-container-diff:
+	@ curl -LO https://github.com/GoogleContainerTools/container-diff/releases/download/v0.17.0/container-diff-linux-amd64 && \
+		chmod +x container-diff-linux-amd64 && sudo mv container-diff-linux-amd64 /usr/local/bin/container-diff
 
 .PHONY: minikube-setup
 minikube-setup:
@@ -64,6 +65,10 @@ minikube-setup:
 .PHONY: test
 test: out/executor
 	@ ./scripts/test.sh
+
+test-with-coverage: test
+	go tool cover -html=out/coverage.out
+
 
 .PHONY: integration-test
 integration-test:
@@ -86,14 +91,23 @@ integration-test-misc:
 	$(eval RUN_ARG=$(shell ./scripts/misc-integration-test.sh))
 	@ ./scripts/integration-test.sh -run "$(RUN_ARG)"
 
+.PHONY: k8s-executor-build-push
+k8s-executor-build-push:
+	DOCKER_BUILDKIT=1 docker build ${BUILD_ARG} --build-arg=GOARCH=$(GOARCH) -t $(REGISTRY)/executor:latest -f deploy/Dockerfile .
+	docker push $(REGISTRY)/executor:latest
+
+
 .PHONY: images
-images:
+images: DOCKER_BUILDKIT=1
+images: 
 	docker build ${BUILD_ARG} --build-arg=GOARCH=$(GOARCH) -t $(REGISTRY)/executor:latest -f deploy/Dockerfile .
 	docker build ${BUILD_ARG} --build-arg=GOARCH=$(GOARCH) -t $(REGISTRY)/executor:debug -f deploy/Dockerfile_debug .
+	docker build ${BUILD_ARG} --build-arg=GOARCH=$(GOARCH) -t $(REGISTRY)/executor:slim -f deploy/Dockerfile_slim .
 	docker build ${BUILD_ARG} --build-arg=GOARCH=$(GOARCH) -t $(REGISTRY)/warmer:latest -f deploy/Dockerfile_warmer .
 
 .PHONY: push
 push:
 	docker push $(REGISTRY)/executor:latest
 	docker push $(REGISTRY)/executor:debug
+	docker push $(REGISTRY)/executor:slim
 	docker push $(REGISTRY)/warmer:latest

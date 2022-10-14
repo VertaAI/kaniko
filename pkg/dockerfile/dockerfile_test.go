@@ -29,6 +29,39 @@ import (
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 )
 
+func Test_ParseStages_NoMultistageWithCacheCopy(t *testing.T) {
+	dockerfile := `
+	FROM scratch as first
+	COPY testfile /
+
+	FROM scratch as second
+	COPY --from=second testfile /
+	`
+	tmpfile, err := ioutil.TempFile("", "Dockerfile.test")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer os.Remove(tmpfile.Name())
+
+	if _, err := tmpfile.Write([]byte(dockerfile)); err != nil {
+		t.Fatal(err)
+	}
+	if err := tmpfile.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	opts := &config.KanikoOptions{
+		DockerfilePath:  tmpfile.Name(),
+		CacheCopyLayers: true,
+	}
+
+	_, _, err = ParseStages(opts)
+	if err == nil {
+		t.Fatal("expected ParseStages to fail on MultiStage build if CacheCopyLayers=true")
+	}
+}
+
 func Test_ParseStages_ArgValueWithQuotes(t *testing.T) {
 	dockerfile := `
 	ARG IMAGE="ubuntu:16.04"
@@ -73,8 +106,8 @@ func Test_ParseStages_ArgValueWithQuotes(t *testing.T) {
 	}
 
 	for i, expectedVal := range []string{"ubuntu:16.04", "bar", "Hello", "World", "Hello World"} {
-		if metaArgs[i].ValueString() != expectedVal {
-			t.Fatalf("expected metaArg %d val to be %s but was %s", i, expectedVal, metaArgs[i].ValueString())
+		if metaArgs[i].Args[0].ValueString() != expectedVal {
+			t.Fatalf("expected metaArg %d val to be %s but was %s", i, expectedVal, metaArgs[i].Args[0].ValueString())
 		}
 	}
 }
@@ -89,7 +122,7 @@ func Test_stripEnclosingQuotes(t *testing.T) {
 
 	newArgCommand := func(key, val string) instructions.ArgCommand {
 		return instructions.ArgCommand{
-			KeyValuePairOptional: instructions.KeyValuePairOptional{Key: key, Value: &val},
+			Args: []instructions.KeyValuePairOptional{{Key: key, Value: &val}},
 		}
 	}
 
@@ -181,12 +214,12 @@ func Test_stripEnclosingQuotes(t *testing.T) {
 			}
 
 			for i := range out {
-				if expected[i] != out[i].ValueString() {
+				if expected[i] != out[i].Args[0].ValueString() {
 					t.Errorf(
 						"Expected arg at index %d to equal %v but instead equaled %v",
 						i,
 						expected[i],
-						out[i].ValueString())
+						out[i].Args[0].ValueString())
 				}
 			}
 		})
@@ -261,6 +294,9 @@ func Test_targetStage(t *testing.T) {
 	FROM scratch AS second
 	COPY --from=0 /hi /hi2
 
+	FROM scratch AS UPPER_CASE
+	COPY --from=0 /hi /hi2
+
 	FROM scratch
 	COPY --from=second /hi2 /hi3
 	`
@@ -281,9 +317,15 @@ func Test_targetStage(t *testing.T) {
 			shouldErr:   false,
 		},
 		{
+			name:        "test valid upper case target",
+			target:      "UPPER_CASE",
+			targetIndex: 2,
+			shouldErr:   false,
+		},
+		{
 			name:        "test no target",
 			target:      "",
-			targetIndex: 2,
+			targetIndex: 3,
 			shouldErr:   false,
 		},
 		{

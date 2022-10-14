@@ -53,6 +53,7 @@ func (c *CopyCommand) ExecuteCommand(config *v1.Config, buildArgs *dockerfile.Bu
 
 	replacementEnvs := buildArgs.ReplacementEnvs(config.Env)
 	uid, gid, err := getUserGroup(c.cmd.Chown, replacementEnvs)
+	logrus.Debugf("found uid %v and gid %v for chown string %v", uid, gid, c.cmd.Chown)
 	if err != nil {
 		return errors.Wrap(err, "getting user group from chown")
 	}
@@ -191,7 +192,7 @@ func (cr *CachingCopyCommand) ExecuteCommand(config *v1.Config, buildArgs *docke
 	cr.layer = layers[0]
 	cr.extractedFiles, err = util.GetFSFromLayers(kConfig.RootDir, layers, util.ExtractFunc(cr.extractFn), util.IncludeWhiteout())
 
-	logrus.Debugf("extractedFiles: %s", cr.extractedFiles)
+	logrus.Debugf("ExtractedFiles: %s", cr.extractedFiles)
 	if err != nil {
 		return errors.Wrap(err, "extracting fs from image")
 	}
@@ -292,4 +293,21 @@ func copyCmdFilesUsedFromContext(
 	logrus.Debugf("Using files from context: %v", files)
 
 	return files, nil
+}
+
+// AbstractCopyCommand can either be a CopyCommand or a CachingCopyCommand.
+type AbstractCopyCommand interface {
+	From() string
+}
+
+// CastAbstractCopyCommand tries to convert a command to an AbstractCopyCommand.
+func CastAbstractCopyCommand(cmd interface{}) (AbstractCopyCommand, bool) {
+	switch v := cmd.(type) {
+	case *CopyCommand:
+		return v, true
+	case *CachingCopyCommand:
+		return v, true
+	}
+
+	return nil, false
 }
