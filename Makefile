@@ -25,9 +25,9 @@ GOOS ?= $(shell go env GOOS)
 GOARCH ?= $(shell go env GOARCH)
 ORG := github.com/GoogleContainerTools
 PROJECT := kaniko
-IMAGE_REPO_NAME ?= "493416687123.dkr.ecr.us-east-1.amazonaws.com/external/kaniko-project/executor"
+IMAGE_REPO_NAME ?= 493416687123.dkr.ecr.us-east-1.amazonaws.com/external/kaniko-project/executor
 REGISTRY ?= $(IMAGE_REPO_NAME)
-IMAGE?=latest
+IMAGE ?= latest
 
 REPOPATH ?= $(ORG)/$(PROJECT)
 VERSION_PACKAGE = $(REPOPATH)/pkg/version
@@ -101,9 +101,10 @@ k8s-executor-build-push:
 
 .PHONY: images
 images: DOCKER_BUILDKIT=1
-	docker build ${BUILD_ARG} --build-arg=GOARCH=$(GOARCH) -t $(REGISTRY)/executor:$IMAGE -f deploy/Dockerfile .
+images:
+	docker build ${BUILD_ARG} --build-arg=GOARCH=$(GOARCH) -t $(REGISTRY)/executor:$(IMAGE) -f deploy/Dockerfile .
 
 .PHONY: push
 push:
-	docker push $(REGISTRY)/executor:$IMAGE
+	docker push $(REGISTRY)/executor:$(IMAGE)
 
