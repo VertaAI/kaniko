@@ -22,6 +22,7 @@ import (
 	"compress/gzip"
 	"fmt"
 	"io"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -30,6 +31,7 @@ import (
 
 	"github.com/GoogleContainerTools/kaniko/pkg/config"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/system"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -47,6 +49,26 @@ func NewTar(f io.Writer) Tar {
 		w:         w,
 		hardlinks: map[uint64]string{},
 	}
+}
+
+func CreateTarballOfDirectory(pathToDir string, f io.Writer) error {
+	if !filepath.IsAbs(pathToDir) {
+		return errors.New("pathToDir is not absolute")
+	}
+	tarWriter := NewTar(f)
+	defer tarWriter.Close()
+
+	walkFn := func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !filepath.IsAbs(path) {
+			return fmt.Errorf("path %v is not absolute, cant read file", path)
+		}
+		return tarWriter.AddFileToTar(path)
+	}
+
+	return filepath.WalkDir(pathToDir, walkFn)
 }
 
 // Close will close any open streams used by Tar.
@@ -69,10 +91,14 @@ func (t *Tar) AddFileToTar(p string) error {
 		}
 	}
 	if i.Mode()&os.ModeSocket != 0 {
-		logrus.Infof("ignoring socket %s, not adding to tar", i.Name())
+		logrus.Infof("Ignoring socket %s, not adding to tar", i.Name())
 		return nil
 	}
 	hdr, err := tar.FileInfoHeader(i, linkDst)
+	if err != nil {
+		return err
+	}
+	err = readSecurityXattrToTarHeader(p, hdr)
 	if err != nil {
 		return err
 	}
@@ -92,6 +118,8 @@ func (t *Tar) AddFileToTar(p string) error {
 	// this makes this layer unnecessarily differ from a cached layer which does contain this information
 	hdr.Uname = ""
 	hdr.Gname = ""
+	// use PAX format to preserve accurate mtime (match Docker behavior)
+	hdr.Format = tar.FormatPAX
 
 	hardlink, linkDst := t.checkHardlink(p, i)
 	if hardlink {
@@ -116,9 +144,44 @@ func (t *Tar) AddFileToTar(p string) error {
 	return nil
 }
 
+const (
+	securityCapabilityXattr = "security.capability"
+)
+
+// writeSecurityXattrToTarHeader writes security.capability
+// xattrs from a tar header to filesystem
+func writeSecurityXattrToToFile(path string, hdr *tar.Header) error {
+	if hdr.Xattrs == nil {
+		return nil
+	}
+	if capability, ok := hdr.Xattrs[securityCapabilityXattr]; ok {
+		err := system.Lsetxattr(path, securityCapabilityXattr, []byte(capability), 0)
+		if err != nil && !errors.Is(err, syscall.EOPNOTSUPP) && err != system.ErrNotSupportedPlatform {
+			return errors.Wrapf(err, "failed to write %q attribute to %q", securityCapabilityXattr, path)
+		}
+	}
+	return nil
+}
+
+// readSecurityXattrToTarHeader reads security.capability
+// xattrs from filesystem to a tar header
+func readSecurityXattrToTarHeader(path string, hdr *tar.Header) error {
+	if hdr.Xattrs == nil {
+		hdr.Xattrs = make(map[string]string)
+	}
+	capability, err := system.Lgetxattr(path, securityCapabilityXattr)
+	if err != nil && !errors.Is(err, syscall.EOPNOTSUPP) && err != system.ErrNotSupportedPlatform {
+		return errors.Wrapf(err, "failed to read %q attribute from %q", securityCapabilityXattr, path)
+	}
+	if capability != nil {
+		hdr.Xattrs[securityCapabilityXattr] = string(capability)
+	}
+	return nil
+}
+
 func (t *Tar) Whiteout(p string) error {
 	dir := filepath.Dir(p)
-	name := ".wh." + filepath.Base(p)
+	name := archive.WhiteoutPrefix + filepath.Base(p)
 
 	th := &tar.Header{
 		// Docker uses no leading / in the tarball
@@ -176,7 +239,7 @@ func UnpackLocalTarArchive(path, dest string) ([]string, error) {
 			return nil, UnpackCompressedTar(path, dest)
 		} else if compressionLevel == archive.Bzip2 {
 			bzr := bzip2.NewReader(file)
-			return unTar(bzr, dest)
+			return UnTar(bzr, dest)
 		}
 	}
 	if fileIsUncompressedTar(path) {
@@ -185,12 +248,12 @@ func UnpackLocalTarArchive(path, dest string) ([]string, error) {
 			return nil, err
 		}
 		defer file.Close()
-		return unTar(file, dest)
+		return UnTar(file, dest)
 	}
 	return nil, errors.New("path does not lead to local tar archive")
 }
 
-//IsFileLocalTarArchive returns true if the file is a local tar archive
+// IsFileLocalTarArchive returns true if the file is a local tar archive
 func IsFileLocalTarArchive(src string) bool {
 	compressed, _ := fileIsCompressedTar(src)
 	uncompressed := fileIsUncompressedTar(src)
@@ -244,6 +307,6 @@ func UnpackCompressedTar(path, dir string) error {
 		return err
 	}
 	defer gzr.Close()
-	_, err = unTar(gzr, dir)
+	_, err = UnTar(gzr, dir)
 	return err
 }

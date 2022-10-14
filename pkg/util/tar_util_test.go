@@ -17,12 +17,16 @@ limitations under the License.
 package util
 
 import (
+	"archive/tar"
+	"bytes"
 	"compress/gzip"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/GoogleContainerTools/kaniko/testutil"
 )
@@ -32,11 +36,7 @@ var uncompressedTars = []string{"uncompressed", "uncompressed.tar"}
 var compressedTars = []string{"compressed", "compressed.tar.gz"}
 
 func Test_IsLocalTarArchive(t *testing.T) {
-	testDir, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatalf("err setting up temp dir: %v", err)
-	}
-	defer os.RemoveAll(testDir)
+	testDir := t.TempDir()
 	if err := setUpFilesAndTars(testDir); err != nil {
 		t.Fatal(err)
 	}
@@ -55,6 +55,35 @@ func Test_IsLocalTarArchive(t *testing.T) {
 		isTarArchive := IsFileLocalTarArchive(filepath.Join(testDir, compressedTar))
 		testutil.CheckErrorAndDeepEqual(t, false, nil, true, isTarArchive)
 	}
+}
+
+func Test_AddFileToTar(t *testing.T) {
+	testDir := t.TempDir()
+
+	path := filepath.Join(testDir, regularFiles[0])
+	if err := ioutil.WriteFile(path, []byte("hello"), os.ModePerm); err != nil {
+		t.Fatal(err)
+	}
+	// use a pre-determined time with non-zero microseconds to avoid flakiness
+	mtime := time.UnixMicro(1635533172891395)
+	if err := os.Chtimes(path, mtime, mtime); err != nil {
+		t.Fatal(err)
+	}
+
+	buf := new(bytes.Buffer)
+	tarw := NewTar(buf)
+	if err := tarw.AddFileToTar(path); err != nil {
+		t.Fatal(err)
+	}
+	tarw.Close()
+
+	// Check that the mtime is correct (#1808)
+	tarReader := tar.NewReader(buf)
+	hdr, err := tarReader.Next()
+	if err != nil {
+		t.Fatal(err)
+	}
+	testutil.CheckDeepEqual(t, mtime, hdr.ModTime)
 }
 
 func setUpFilesAndTars(testDir string) error {
@@ -100,4 +129,47 @@ func createTar(testdir string, writer io.Writer) error {
 		}
 	}
 	return nil
+}
+
+func Test_CreateTarballOfDirectory(t *testing.T) {
+	tmpDir := t.TempDir()
+	wantErr := false
+	createFilesInTempDir(t, tmpDir)
+	f := &bytes.Buffer{}
+	err := CreateTarballOfDirectory(tmpDir, f)
+	testutil.CheckError(t, wantErr, err)
+
+	extracedFilesDir := filepath.Join(tmpDir, "extracted")
+	err = os.Mkdir(extracedFilesDir, 0755)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	files, err := UnTar(f, extracedFilesDir)
+	testutil.CheckError(t, wantErr, err)
+	for _, filePath := range files {
+		fileInfo, err := os.Lstat(filePath)
+		testutil.CheckError(t, wantErr, err)
+		if fileInfo.IsDir() {
+			// skip directory
+			continue
+		}
+		file, err := os.Open(filePath)
+		testutil.CheckError(t, wantErr, err)
+		body, err := io.ReadAll(file)
+		testutil.CheckError(t, wantErr, err)
+		index := filepath.Base(filePath)
+		testutil.CheckDeepEqual(t, string(body), fmt.Sprintf("hello from %s\n", index))
+	}
+}
+
+func createFilesInTempDir(t *testing.T, tmpDir string) {
+	for i := 0; i < 2; i++ {
+		fName := filepath.Join(tmpDir, fmt.Sprint(i))
+		content := fmt.Sprintf("hello from %d\n", i)
+		if err := os.WriteFile(fName, []byte(content), 0666); err != nil {
+			t.Error(err)
+			return
+		}
+	}
 }

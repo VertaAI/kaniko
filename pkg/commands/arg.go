@@ -30,12 +30,14 @@ type ArgCommand struct {
 
 // ExecuteCommand only needs to add this ARG key/value as seen
 func (r *ArgCommand) ExecuteCommand(config *v1.Config, buildArgs *dockerfile.BuildArgs) error {
-	key, val, err := ParseArg(r.cmd.Key, r.cmd.Value, config.Env, buildArgs)
-	if err != nil {
-		return err
-	}
+	for _, arg := range r.cmd.Args {
+		key, val, err := ParseArg(arg.Key, arg.Value, config.Env, buildArgs)
+		if err != nil {
+			return err
+		}
 
-	buildArgs.AddArg(key, val)
+		buildArgs.AddArg(key, val)
+	}
 	return nil
 }
 
@@ -53,8 +55,9 @@ func ParseArg(key string, val *string, env []string, ba *dockerfile.BuildArgs) (
 		}
 		resolvedValue = &value
 	} else {
-		meta := ba.GetAllMeta()
-		if value, ok := meta[resolvedKey]; ok {
+		if value, ok := ba.GetAllAllowed()[resolvedKey]; ok {
+			resolvedValue = &value
+		} else if value, ok := ba.GetAllMeta()[resolvedKey]; ok {
 			resolvedValue = &value
 		}
 	}

@@ -56,7 +56,7 @@ func TestK8s(t *testing.T) {
 			t.Parallel()
 
 			if err := builder.BuildDockerImage(
-				config.imageRepo, "", name, testDir,
+				t, config.imageRepo, "", name, testDir,
 			); err != nil {
 				t.Fatal(err)
 			}
@@ -75,23 +75,51 @@ func TestK8s(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			fmt.Printf("Testing K8s based Kaniko building of dockerfile %s and push to %s \n",
+			t.Logf("Testing K8s based Kaniko building of dockerfile %s and push to %s \n",
 				testDir, kanikoImage)
 			content, err := ioutil.ReadFile(tmpfile.Name())
 			if err != nil {
 				log.Fatal(err)
 			}
-			fmt.Printf("K8s template %s:\n%s\n", tmpfile.Name(), content)
+			t.Logf("K8s template %s:\n%s\n", tmpfile.Name(), content)
 
 			kubeCmd := exec.Command("kubectl", "apply", "-f", tmpfile.Name())
 			RunCommand(kubeCmd, t)
 
-			fmt.Printf("Waiting for K8s kaniko build job to finish: %s\n",
+			t.Logf("Waiting for K8s kaniko build job to finish: %s\n",
 				"job/kaniko-test-"+job.Name)
 
-			kubeWaitCmd := exec.Command("kubectl", "wait", "--for=condition=complete", "--timeout=60s",
+			kubeWaitCmd := exec.Command("kubectl", "wait", "--for=condition=complete", "--timeout=2m",
 				"job/kaniko-test-"+job.Name)
-			RunCommand(kubeWaitCmd, t)
+			if out, errR := RunCommandWithoutTest(kubeWaitCmd); errR != nil {
+				t.Log(kubeWaitCmd.Args)
+				t.Log(string(out))
+				descCmd := exec.Command("kubectl", "describe", "job/kaniko-test-"+job.Name)
+				outD, errD := RunCommandWithoutTest(descCmd)
+				if errD != nil {
+					t.Error(errD)
+				} else {
+					t.Log(string(outD))
+				}
+
+				descCmd = exec.Command("kubectl", "describe", "pods", "--selector", "job-name=kaniko-test-"+job.Name)
+				outD, errD = RunCommandWithoutTest(descCmd)
+				if errD != nil {
+					t.Error(errD)
+				} else {
+					t.Log(string(outD))
+				}
+
+				logsCmd := exec.Command("kubectl", "logs", "--all-containers", "job/kaniko-test-"+job.Name)
+				outL, errL := RunCommandWithoutTest(logsCmd)
+				if errL != nil {
+					t.Error(errL)
+				} else {
+					t.Log(string(outL))
+				}
+
+				t.Fatal(errR)
+			}
 
 			diff := containerDiff(t, daemonPrefix+dockerImage, kanikoImage, "--no-cache")
 

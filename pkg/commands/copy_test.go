@@ -52,16 +52,13 @@ var copyTests = []struct {
 	},
 }
 
-func setupTestTemp() string {
-	tempDir, err := ioutil.TempDir("", "")
-	if err != nil {
-		logrus.Fatalf("error creating temp dir %s", err)
-	}
+func setupTestTemp(t *testing.T) string {
+	tempDir := t.TempDir()
 	logrus.Debugf("Tempdir: %s", tempDir)
 
 	srcPath, err := filepath.Abs("../../integration/context")
 	if err != nil {
-		logrus.Fatalf("error getting abs path %s", srcPath)
+		logrus.Fatalf("Error getting abs path %s", srcPath)
 	}
 	cperr := filepath.Walk(srcPath,
 		func(path string, info os.FileInfo, err error) error {
@@ -101,16 +98,16 @@ func setupTestTemp() string {
 			return nil
 		})
 	if cperr != nil {
-		logrus.Fatalf("error populating temp dir %s", cperr)
+		logrus.Fatalf("Error populating temp dir %s", cperr)
 	}
 
 	return tempDir
 }
 
 func Test_CachingCopyCommand_ExecuteCommand(t *testing.T) {
-	tempDir := setupTestTemp()
+	tempDir := setupTestTemp(t)
 
-	tarContent, err := prepareTarFixture([]string{"foo.txt"})
+	tarContent, err := prepareTarFixture(t, []string{"foo.txt"})
 	if err != nil {
 		t.Errorf("couldn't prepare tar fixture %v", err)
 	}
@@ -261,8 +258,7 @@ func Test_CachingCopyCommand_ExecuteCommand(t *testing.T) {
 }
 
 func TestCopyExecuteCmd(t *testing.T) {
-	tempDir := setupTestTemp()
-	defer os.RemoveAll(tempDir)
+	tempDir := setupTestTemp(t)
 
 	cfg := &v1.Config{
 		Cmd:        nil,
@@ -305,7 +301,7 @@ func TestCopyExecuteCmd(t *testing.T) {
 					t.Error()
 				}
 				for _, file := range files {
-					logrus.Debugf("file: %v", file.Name())
+					logrus.Debugf("File: %v", file.Name())
 					dirList = append(dirList, file.Name())
 				}
 			} else {
@@ -336,10 +332,7 @@ func Test_resolveIfSymlink(t *testing.T) {
 		err          error
 	}
 
-	tmpDir, err := ioutil.TempDir("", "copy-test")
-	if err != nil {
-		t.Error(err)
-	}
+	tmpDir := t.TempDir()
 
 	baseDir, err := ioutil.TempDir(tmpDir, "not-linked")
 	if err != nil {
@@ -394,10 +387,7 @@ func Test_resolveIfSymlink(t *testing.T) {
 
 func TestCopyCommand_ExecuteCommand_Extended(t *testing.T) {
 	setupDirs := func(t *testing.T) (string, string) {
-		testDir, err := ioutil.TempDir("", "")
-		if err != nil {
-			t.Fatal(err)
-		}
+		testDir := t.TempDir()
 
 		dir := filepath.Join(testDir, "bar")
 

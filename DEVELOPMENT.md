@@ -74,7 +74,7 @@ The helper script to install and run lint is placed here at the root of project.
 
 ```shell
 ./hack/linter.sh
-``` 
+```
 
 To fix any `gofmt` issues, you can simply run `gofmt` with `-w` flag like this
 
@@ -85,6 +85,8 @@ find . -name "*.go" | grep -v vendor/ | xargs gofmt -l -s -w
 ### Integration tests
 
 Currently the integration tests that live in [`integration`](./integration) can be run against your own gcloud space or a local registry.
+
+These tests will be kicked off by [reviewers](#reviews) for submitted PRs using GitHub Actions.
 
 In either case, you will need the following tools:
 
@@ -99,6 +101,8 @@ To run integration tests with your GCloud Storage, you will also need the follow
 * A bucket in [GCS](https://cloud.google.com/storage/) which you have write access to via
   the user currently logged into `gcloud`
 * An image repo which you have write access to via the user currently logged into `gcloud`
+* A docker account and a `~/.docker/config.json` with login credentials if you run
+  into rate limiting problems during tests.
 
 Once this step done, you must override the project using environment variables:
 
@@ -132,41 +136,31 @@ go test ./integration -v --bucket $GCS_BUCKET --repo $IMAGE_REPO -run TestLayers
 
 These tests will be kicked off by [reviewers](#reviews) for submitted PRs by the kokoro task.
 
-#### Local repository
+#### Local integration tests
 
-To run integration tests locally against a local registry, install a local docker registry
-
-```shell
-docker run --rm  -d -p 5000:5000 --name registry registry:2
-```
-
-Then export the `IMAGE_REPO` variable with  the `localhost:5000`value
+To run integration tests locally against a local registry and gcs bucket, set the LOCAL environment variable
 
 ```shell
-export IMAGE_REPO=localhost:5000
+LOCAL=1 make integration-test
 ```
 
-And run the integration tests
+#### Running integration tests for a specific dockerfile
+
+In order to test only specific dockerfiles during local integration testing, you can specify a pattern to match against inside the integration/dockerfiles directory.
 
 ```shell
-make integration-test
+DOCKERFILE_PATTERN="Dockerfile_test_add*" make integration-test-run
 ```
 
-You can also run tests with `go test`, for example to run tests individually:
-
-```shell
-go test ./integration -v --repo localhost:5000 -run TestLayers/test_layer_Dockerfile_test_copy_bucket
-```
-
-These tests will be kicked off by [reviewers](#reviews) for submitted PRs by the travis task.
+This will only run dockerfiles that match the pattern `Dockerfile_test_add*`
 
 
 
 ### Benchmarking
 
-The goal is for Kaniko to be at least as fast at building Dockerfiles as Docker is, and to that end, we've built 
+The goal is for Kaniko to be at least as fast at building Dockerfiles as Docker is, and to that end, we've built
 in benchmarking to check the speed of not only each full run, but also how long each step of each run takes. To turn
-on benchmarking, just set the `BENCHMARK_FILE` environment variable, and kaniko will output all the benchmark info 
+on benchmarking, just set the `BENCHMARK_FILE` environment variable, and kaniko will output all the benchmark info
 of each run to that file location.
 
 ```shell
@@ -176,7 +170,7 @@ gcr.io/kaniko-project/executor:latest \
 --dockerfile=<path to Dockerfile> --context=/workspace \
 --destination=gcr.io/my-repo/my-image
 ```
-Additionally, the integration tests can output benchmarking information to a `benchmarks` directory under the 
+Additionally, the integration tests can output benchmarking information to a `benchmarks` directory under the
 `integration` directory if the `BENCHMARK` environment variable is set to `true.`
 
 ```shell
@@ -192,7 +186,7 @@ steps:
   args:
   - --build-arg=NUM=${_COUNT}
   - --no-push
-  - --snapshotMode=redo
+  - --snapshot-mode=redo
   env:
   - 'BENCHMARK_FILE=gs://$PROJECT_ID/gcb/benchmark_file'
 ```

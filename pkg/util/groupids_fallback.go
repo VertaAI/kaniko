@@ -1,3 +1,4 @@
+//go:build (linux || darwin) && !cgo
 // +build linux darwin
 // +build !cgo
 
@@ -42,7 +43,12 @@ type group struct {
 
 // groupIDs returns all of the group ID's a user is a member of
 func groupIDs(u *user.User) ([]string, error) {
-	logrus.Infof("performing slow lookup of group ids for %s", u.Username)
+	logrus.Infof("Performing slow lookup of group ids for %s", u.Username)
+
+	// user can have no gid if it's a non existing user
+	if u.Gid == "" {
+		return []string{}, nil
+	}
 
 	f, err := os.Open(groupFile)
 	if err != nil {

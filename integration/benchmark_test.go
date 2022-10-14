@@ -59,8 +59,8 @@ func TestSnapshotBenchmark(t *testing.T) {
 				kanikoImage := fmt.Sprintf("%s_%d", GetKanikoImage(config.imageRepo, dockerfile), num)
 				buildArgs := []string{"--build-arg", fmt.Sprintf("NUM=%d", num)}
 				var benchmarkDir string
-				benchmarkDir, *err = buildKanikoImage("", dockerfile,
-					buildArgs, []string{}, kanikoImage, contextDir, config.gcsBucket,
+				benchmarkDir, *err = buildKanikoImage(t.Logf, "", dockerfile,
+					buildArgs, []string{}, kanikoImage, contextDir, config.gcsBucket, config.gcsClient,
 					config.serviceAccount, false)
 				if *err != nil {
 					return
@@ -77,11 +77,11 @@ func TestSnapshotBenchmark(t *testing.T) {
 	}
 	wg.Wait()
 
-	fmt.Println("Number of Files,Total Build Time,Walking Filesystem, Resolving Files")
+	t.Log("Number of Files,Total Build Time,Walking Filesystem, Resolving Files")
 	timeMap.Range(func(key interface{}, value interface{}) bool {
 		d, _ := key.(int)
 		v, _ := value.(result)
-		fmt.Println(fmt.Sprintf("%d,%f,%f,%f", d, v.totalBuildTime, v.walkingFiles, v.resolvingFiles))
+		t.Logf("%d,%f,%f,%f", d, v.totalBuildTime, v.walkingFiles, v.resolvingFiles)
 		return true
 	})
 
@@ -111,7 +111,7 @@ func newResult(t *testing.T, f string) result {
 	if c, ok := current["Hashing files"]; ok {
 		r.hashingFiles = c.Seconds()
 	}
-	fmt.Println(r)
+	t.Log(r)
 	return r
 }
 
@@ -128,7 +128,7 @@ func TestSnapshotBenchmarkGcloud(t *testing.T) {
 	nums := []int{10000, 50000, 100000, 200000, 300000, 500000, 700000}
 
 	var wg sync.WaitGroup
-	fmt.Println("Number of Files,Total Build Time,Walking Filesystem, Resolving Files")
+	t.Log("Number of Files,Total Build Time,Walking Filesystem, Resolving Files")
 	for _, num := range nums {
 		t.Run(fmt.Sprintf("test_benchmark_%d", num), func(t *testing.T) {
 			wg.Add(1)
@@ -139,7 +139,7 @@ func TestSnapshotBenchmarkGcloud(t *testing.T) {
 					return
 				}
 				r := newResult(t, filepath.Join(dir, "results"))
-				fmt.Println(fmt.Sprintf("%d,%f,%f,%f, %f", num, r.totalBuildTime, r.walkingFiles, r.resolvingFiles, r.hashingFiles))
+				t.Log(fmt.Sprintf("%d,%f,%f,%f, %f", num, r.totalBuildTime, r.walkingFiles, r.resolvingFiles, r.hashingFiles))
 				wg.Done()
 				defer os.Remove(dir)
 				defer os.Chdir(cwd)
@@ -169,7 +169,7 @@ func runInGcloud(dir string, num int) (string, error) {
 	copyCommand := exec.Command("gsutil", "cp", src, dest)
 	_, err = RunCommandWithoutTest(copyCommand)
 	if err != nil {
-		return "", fmt.Errorf("failed to download file to GCS bucket %s: %s", src, err)
+		return "", fmt.Errorf("failed to download file to GCS bucket %s: %w", src, err)
 	}
 	return tmpDir, nil
 }

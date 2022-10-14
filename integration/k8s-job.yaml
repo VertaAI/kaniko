@@ -8,12 +8,13 @@ spec:
       hostNetwork: true
       containers:
       - name: kaniko
-        image: localhost:5000/executor:debug
+        image: localhost:5000/executor:latest
+        workingDir: /workspace
         args: [ "--context=dir:///workspace",
                 "--destination={{.KanikoImage}}"]
         volumeMounts:
-          - name: context
-            mountPath: /workspace
+        - name: context
+          mountPath: /workspace
       restartPolicy: Never
       volumes:
       - name: context

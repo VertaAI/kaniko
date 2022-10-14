@@ -28,18 +28,13 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// for testing
-var (
-	Lookup = util.Lookup
-)
-
 type UserCommand struct {
 	BaseCommand
 	cmd *instructions.UserCommand
 }
 
 func (r *UserCommand) ExecuteCommand(config *v1.Config, buildArgs *dockerfile.BuildArgs) error {
-	logrus.Info("cmd: USER")
+	logrus.Info("Cmd: USER")
 	u := r.cmd.User
 	userAndGroup := strings.Split(u, ":")
 	replacementEnvs := buildArgs.ReplacementEnvs(config.Env)

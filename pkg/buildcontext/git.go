@@ -17,10 +17,12 @@ limitations under the License.
 package buildcontext
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
 
+	kConfig "github.com/GoogleContainerTools/kaniko/pkg/config"
 	"github.com/go-git/go-billy/v5/osfs"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
@@ -30,8 +32,6 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/go-git/go-git/v5/storage/filesystem"
 	"github.com/sirupsen/logrus"
-
-	"github.com/GoogleContainerTools/kaniko/pkg/constants"
 )
 
 const (
@@ -56,7 +56,7 @@ type Git struct {
 
 // UnpackTarFromBuildContext will provide the directory where Git Repository is Cloned
 func (g *Git) UnpackTarFromBuildContext() (string, error) {
-	directory := constants.BuildContextDir
+	directory := kConfig.BuildContextDir
 	parts := strings.Split(g.context, "#")
 	url := getGitPullMethod() + "://" + parts[0]
 	options := git.CloneOptions{
@@ -66,8 +66,22 @@ func (g *Git) UnpackTarFromBuildContext() (string, error) {
 		SingleBranch:      g.opts.GitSingleBranch,
 		RecurseSubmodules: getRecurseSubmodules(g.opts.GitRecurseSubmodules),
 	}
+	var fetchRef string
+	var checkoutRef string
 	if len(parts) > 1 {
-		if !strings.HasPrefix(parts[1], "refs/pull/") {
+		if plumbing.IsHash(parts[1]) || !strings.HasPrefix(parts[1], "refs/pull/") {
+			// Handle any non-branch refs separately. First, clone the repo HEAD, and
+			// then fetch and check out the fetchRef.
+			fetchRef = parts[1]
+			if plumbing.IsHash(parts[1]) {
+				checkoutRef = fetchRef
+			} else {
+				// The ReferenceName still needs to be present in the options passed
+				// to the clone operation for non-hash references of private repositories.
+				options.ReferenceName = plumbing.ReferenceName(fetchRef)
+			}
+		} else {
+			// Branches will be cloned directly.
 			options.ReferenceName = plumbing.ReferenceName(parts[1])
 		}
 	}
@@ -82,23 +96,25 @@ func (g *Git) UnpackTarFromBuildContext() (string, error) {
 
 	logrus.Debugf("Getting source from reference %s", options.ReferenceName)
 	r, err := git.PlainClone(directory, false, &options)
-
 	if err != nil {
 		return directory, err
 	}
 
-	if len(parts) > 1 && strings.HasPrefix(parts[1], "refs/pull/") {
-
+	if fetchRef != "" {
 		err = r.Fetch(&git.FetchOptions{
 			RemoteName: "origin",
-			RefSpecs:   []config.RefSpec{config.RefSpec(parts[1] + ":" + parts[1])},
+			Auth:       getGitAuth(),
+			RefSpecs:   []config.RefSpec{config.RefSpec(fetchRef + ":" + fetchRef)},
 		})
-		if err != nil {
+		if err != nil && !errors.Is(err, git.NoErrAlreadyUpToDate) {
 			return directory, err
 		}
 	}
 
 	if len(parts) > 2 {
+		checkoutRef = parts[2]
+	}
+	if checkoutRef != "" {
 		// ... retrieving the commit being pointed by HEAD
 		_, err := r.Head()
 		if err != nil {
@@ -112,13 +128,13 @@ func (g *Git) UnpackTarFromBuildContext() (string, error) {
 
 		// ... checking out to desired commit
 		err = w.Checkout(&git.CheckoutOptions{
-			Hash: plumbing.NewHash(parts[2]),
+			Hash: plumbing.NewHash(checkoutRef),
 		})
 		if err != nil {
 			return directory, err
 		}
 	}
-	return directory, err
+	return directory, nil
 }
 
 func getGitReferenceName(directory string, url string, branch string) (plumbing.ReferenceName, error) {

@@ -42,7 +42,7 @@ func ResolvePaths(paths []string, wl []util.IgnoreListEntry) (pathsToAdd []strin
 	for _, f := range paths {
 		// If the given path is part of the ignorelist ignore it
 		if util.IsInProvidedIgnoreList(f, wl) {
-			logrus.Debugf("path %s is in list to ignore, ignoring it", f)
+			logrus.Debugf("Path %s is in list to ignore, ignoring it", f)
 			continue
 		}
 
@@ -52,7 +52,7 @@ func ResolvePaths(paths []string, wl []util.IgnoreListEntry) (pathsToAdd []strin
 		}
 
 		if f != link {
-			logrus.Tracef("updated link %s to %s", f, link)
+			logrus.Tracef("Updated link %s to %s", f, link)
 		}
 
 		if !fileSet[link] {
@@ -67,21 +67,21 @@ func ResolvePaths(paths []string, wl []util.IgnoreListEntry) (pathsToAdd []strin
 		evaled, e = filepath.EvalSymlinks(f)
 		if e != nil {
 			if !os.IsNotExist(e) {
-				logrus.Errorf("couldn't eval %s with link %s", f, link)
+				logrus.Errorf("Couldn't eval %s with link %s", f, link)
 				return
 			}
 
-			logrus.Debugf("symlink path %s, target does not exist", f)
+			logrus.Tracef("Symlink path %s, target does not exist", f)
 			continue
 		}
 		if f != evaled {
-			logrus.Debugf("resolved symlink %s to %s", f, evaled)
+			logrus.Tracef("Resolved symlink %s to %s", f, evaled)
 		}
 
 		// If the given path is a symlink and the target is part of the ignorelist
 		// ignore the target
 		if util.CheckProvidedIgnoreList(evaled, wl) {
-			logrus.Debugf("path %s is ignored, ignoring it", evaled)
+			logrus.Debugf("Path %s is ignored, ignoring it", evaled)
 			continue
 		}
 
@@ -120,7 +120,7 @@ func filesWithParentDirs(files []string) []string {
 }
 
 // resolveSymlinkAncestor returns the ancestor link of the provided symlink path or returns the
-// the path if it is not a link. The ancestor link is the filenode whose type is a Symlink.
+// path if it is not a link. The ancestor link is the filenode whose type is a Symlink.
 // E.G /baz/boom/bar.txt links to /usr/bin/bar.txt but /baz/boom/bar.txt itself is not a link.
 // Instead /bar/boom is actually a link to /usr/bin. In this case resolveSymlinkAncestor would
 // return /bar/boom.
@@ -147,7 +147,7 @@ loop:
 			// one of its ancestors could be a symlink. We call filepath.EvalSymlinks
 			// to test whether there are any links in the path. If the output of
 			// EvalSymlinks is different than the input we know one of the nodes in the
-			// the path is a link.
+			// path is a link.
 			target, err := filepath.EvalSymlinks(newPath)
 			if err != nil {
 				return "", err

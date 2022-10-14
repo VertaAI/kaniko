@@ -17,12 +17,11 @@ limitations under the License.
 package buildcontext
 
 import (
+	"compress/gzip"
 	"fmt"
-	"io/ioutil"
 	"os"
-	"path/filepath"
 
-	"github.com/GoogleContainerTools/kaniko/pkg/constants"
+	kConfig "github.com/GoogleContainerTools/kaniko/pkg/config"
 	"github.com/GoogleContainerTools/kaniko/pkg/util"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -35,7 +34,7 @@ type Tar struct {
 
 // UnpackTarFromBuildContext unpack the compressed tar file
 func (t *Tar) UnpackTarFromBuildContext() (string, error) {
-	directory := constants.BuildContextDir
+	directory := kConfig.BuildContextDir
 	if err := os.MkdirAll(directory, 0750); err != nil {
 		return "", errors.Wrap(err, "unpacking tar from build context")
 	}
@@ -47,14 +46,15 @@ func (t *Tar) UnpackTarFromBuildContext() (string, error) {
 		logrus.Infof("To simulate EOF and exit, press 'Ctrl+D'")
 		// if launched through docker in interactive mode and without piped data
 		// process will be stuck here until EOF is sent
-		data, err := util.GetInputFrom(os.Stdin)
+		gzr, err := gzip.NewReader(os.Stdin)
 		if err != nil {
-			return "", errors.Wrap(err, "fail to get standard input")
+			return directory, err
 		}
-		t.context = filepath.Join(directory, constants.ContextTar)
-		if err := ioutil.WriteFile(t.context, data, 0644); err != nil {
-			return "", errors.Wrap(err, "fail to redirect standard input into compressed tar file")
-		}
+		defer gzr.Close()
+		_, err = util.UnTar(gzr, directory)
+
+		return directory, err
+
 	}
 
 	return directory, util.UnpackCompressedTar(t.context, directory)
