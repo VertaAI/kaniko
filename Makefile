@@ -15,7 +15,7 @@
 # Bump these on release
 VERSION_MAJOR ?= 1
 VERSION_MINOR ?= 9
-VERSION_BUILD ?= 1
+VERSION_BUILD ?= 2
 
 VERSION ?= v$(VERSION_MAJOR).$(VERSION_MINOR).$(VERSION_BUILD)
 VERSION_PACKAGE = $(REPOPATH/pkg/version)
@@ -60,9 +60,9 @@ install-container-diff:
 	@ curl -LO https://github.com/GoogleContainerTools/container-diff/releases/download/v0.17.0/container-diff-linux-amd64 && \
 		chmod +x container-diff-linux-amd64 && sudo mv container-diff-linux-amd64 /usr/local/bin/container-diff
 
-.PHONY: minikube-setup
-minikube-setup:
-	@ ./scripts/minikube-setup.sh
+.PHONY: k3s-setup
+k3s-setup:
+	@ ./scripts/k3s-setup.sh
 
 .PHONY: test
 test: out/executor
