@@ -22,19 +22,22 @@ ENV GOARCH=$TARGETARCH
 ENV CGO_ENABLED=0
 ENV GOBIN=/usr/local/bin
 
-# Get GCR credential helper
-RUN go install github.com/GoogleCloudPlatform/docker-credential-gcr@4cdd60d0f2d8a69bc70933f4d7718f9c4e956ff8
-
-# Get Amazon ECR credential helper
-RUN go install github.com/awslabs/amazon-ecr-credential-helper/ecr-login/cli/docker-credential-ecr-login@69c85dc22db6511932bbf119e1a0cc5c90c69a7f # v0.6.0
-
-# Get ACR docker env credential helper
-RUN go install github.com/chrismellard/docker-credential-acr-env@82a0ddb2758901b711d9d1614755b77e401598a1
-
 # Add .docker config dir
 RUN mkdir -p /kaniko/.docker
 
 COPY . .
+
+#  dependencies https://github.com/golang/go/issues/48332
+
+# Get GCR credential helper
+RUN go install github.com/GoogleCloudPlatform/docker-credential-gcr
+
+# Get Amazon ECR credential helper
+RUN go install github.com/awslabs/amazon-ecr-credential-helper/ecr-login/cli/docker-credential-ecr-login
+
+# Get ACR docker env credential helper
+RUN go install github.com/chrismellard/docker-credential-acr-env
+
 RUN \
   --mount=type=cache,target=/root/.cache/go-build \
   --mount=type=cache,target=/go/pkg \
