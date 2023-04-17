@@ -5,7 +5,7 @@ go 1.19
 require (
 	cloud.google.com/go/storage v1.29.0
 	github.com/Azure/azure-storage-blob-go v0.14.0
-	github.com/GoogleCloudPlatform/docker-credential-gcr v1.5.1-0.20210909233216-4cdd60d0f2d8
+	github.com/GoogleCloudPlatform/docker-credential-gcr v2.0.5+incompatible
 	github.com/aws/aws-sdk-go v1.44.24
 	github.com/awslabs/amazon-ecr-credential-helper/ecr-login v0.0.0-20230322223720-077b4a917a90
 	github.com/chrismellard/docker-credential-acr-env v0.0.0-20230304212654-82a0ddb27589

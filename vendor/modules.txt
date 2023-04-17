@@ -59,8 +59,8 @@ github.com/Azure/go-autorest/logger
 # github.com/Azure/go-autorest/tracing v0.6.0
 ## explicit; go 1.12
 github.com/Azure/go-autorest/tracing
-# github.com/GoogleCloudPlatform/docker-credential-gcr v1.5.1-0.20210909233216-4cdd60d0f2d8
-## explicit; go 1.17
+# github.com/GoogleCloudPlatform/docker-credential-gcr v2.0.5+incompatible
+## explicit
 github.com/GoogleCloudPlatform/docker-credential-gcr
 github.com/GoogleCloudPlatform/docker-credential-gcr/auth
 github.com/GoogleCloudPlatform/docker-credential-gcr/cli
