@@ -1,10 +1,13 @@
 name: Integration tests
 
 on:
-  push:
-    branches: ['main']
-  pull_request:
-    branches: ['main']
+  # Only run when this repo changes from private to public.
+  # Already public = never
+  public
+  # push:
+  #   branches: ['main']
+  # pull_request:
+  #   branches: ['main']
 
 permissions:
   contents: read
