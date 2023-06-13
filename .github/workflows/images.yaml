@@ -1,11 +1,15 @@
 name: Build images
 
+
 on:
-  pull_request:
-    branches: ['main']
-  push:
-    branches: ['main']
-    tags: ['v[0-9]+.[0-9]+.[0-9]+*']
+  # Only run when this repo changes from private to public.
+  # Already public = never
+  public
+  # pull_request:
+  #   branches: ['main']
+  # push:
+  #   branches: ['main']
+  #   tags: ['v[0-9]+.[0-9]+.[0-9]+*']
 
 jobs:
   build-images:
