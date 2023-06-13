@@ -21,7 +21,7 @@ env:
   VERTA_ECR_REGISTRY: "493416687123.dkr.ecr.us-east-1.amazonaws.com"
 
 jobs:
-  ambassador:
+  kaniko:
     runs-on: ubuntu-latest
 
     env:
