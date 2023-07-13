@@ -78,19 +78,27 @@ var DefaultARRegistries = [...]string{
 	"europe-docker.pkg.dev",
 	"europe-central2-docker.pkg.dev",
 	"europe-north1-docker.pkg.dev",
+	"europe-southwest1-docker.pkg.dev",
 	"europe-west1-docker.pkg.dev",
 	"europe-west2-docker.pkg.dev",
 	"europe-west3-docker.pkg.dev",
 	"europe-west4-docker.pkg.dev",
-	"europe-west5-docker.pkg.dev",
 	"europe-west6-docker.pkg.dev",
+	"europe-west8-docker.pkg.dev",
+	"europe-west9-docker.pkg.dev",
+	"europe-west12-docker.pkg.dev",
+	"me-central1-docker.pkg.dev",
+	"me-west1-docker.pkg.dev",
 	"northamerica-northeast1-docker.pkg.dev",
 	"northamerica-northeast2-docker.pkg.dev",
 	"southamerica-east1-docker.pkg.dev",
+	"southamerica-west1-docker.pkg.dev",
 	"us-docker.pkg.dev",
 	"us-central1-docker.pkg.dev",
 	"us-east1-docker.pkg.dev",
 	"us-east4-docker.pkg.dev",
+	"us-east5-docker.pkg.dev",
+	"us-south1-docker.pkg.dev",
 	"us-west1-docker.pkg.dev",
 	"us-west2-docker.pkg.dev",
 	"us-west3-docker.pkg.dev",
@@ -110,7 +118,7 @@ var SupportedGCRTokenSources = map[string]string{
 var GCROAuth2Endpoint = google.Endpoint
 
 // GCRScopes is/are the OAuth2 scope(s) to request during access_token creation.
-var GCRScopes = []string{"https://www.googleapis.com/auth/cloud-platform"}
+var GCRScopes = []string{"https://www.googleapis.com/auth/devstorage.read_write"}
 
 // OAuthHTTPContext is the HTTP context to use when performing OAuth2 calls.
 var OAuthHTTPContext = context.Background()
