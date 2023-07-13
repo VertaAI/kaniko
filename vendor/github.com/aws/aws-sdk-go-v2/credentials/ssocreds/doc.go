@@ -11,11 +11,12 @@
 // # Loading AWS SSO credentials with the AWS shared configuration file
 //
 // You can use configure AWS SSO credentials from the AWS shared configuration file by
-// specifying the required keys in the profile and referencing an sso-session:
+// providing the specifying the required keys in the profile:
 //
-//	sso_session
 //	sso_account_id
+//	sso_region
 //	sso_role_name
+//	sso_start_url
 //
 // For example, the following defines a profile "devsso" and specifies the AWS
 // SSO parameters that defines the target account, role, sign-on portal, and
@@ -23,14 +24,10 @@
 // provided, or an error will be returned.
 //
 //	[profile devsso]
-//	sso_session = dev-session
-//	sso_role_name = SSOReadOnlyRole
-//	sso_account_id = 123456789012
-//
-//	[sso-session dev-session]
 //	sso_start_url = https://my-sso-portal.awsapps.com/start
+//	sso_role_name = SSOReadOnlyRole
 //	sso_region = us-east-1
-//	sso_registration_scopes = sso:account:access
+//	sso_account_id = 123456789012
 //
 // Using the config module, you can load the AWS SDK shared configuration, and
 // specify that this profile be used to retrieve credentials. For example:
@@ -46,17 +43,10 @@
 // and provide the necessary information to load and retrieve temporary
 // credentials using an access token from ~/.aws/sso/cache.
 //
-//	ssoClient := sso.NewFromConfig(cfg)
-//	ssoOidcClient := ssooidc.NewFromConfig(cfg)
-//	tokenPath, err := ssocreds.StandardCachedTokenFilepath("dev-session")
-//	if err != nil {
-//	    return err
-//	}
+//	client := sso.NewFromConfig(cfg)
 //
 //	var provider aws.CredentialsProvider
-//	provider = ssocreds.New(ssoClient, "123456789012", "SSOReadOnlyRole", "https://my-sso-portal.awsapps.com/start", func(options *ssocreds.Options) {
-//	  options.SSOTokenProvider = ssocreds.NewSSOTokenProvider(ssoOidcClient, tokenPath)
-//	})
+//	provider = ssocreds.New(client, "123456789012", "SSOReadOnlyRole", "us-east-1", "https://my-sso-portal.awsapps.com/start")
 //
 //	// Wrap the provider with aws.CredentialsCache to cache the credentials until their expire time
 //	provider = aws.NewCredentialsCache(provider)

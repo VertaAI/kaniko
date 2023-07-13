@@ -17,7 +17,6 @@ limitations under the License.
 package buildcontext
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -27,10 +26,10 @@ import (
 	"github.com/GoogleContainerTools/kaniko/pkg/constants"
 	"github.com/GoogleContainerTools/kaniko/pkg/util"
 	"github.com/GoogleContainerTools/kaniko/pkg/util/bucket"
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/config"
-	s3manager "github.com/aws/aws-sdk-go-v2/feature/s3/manager"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 )
 
 // S3 unifies calls to download and unpack the build context.
@@ -45,31 +44,25 @@ func (s *S3) UnpackTarFromBuildContext() (string, error) {
 		return "", fmt.Errorf("getting bucketname and filepath from context: %w", err)
 	}
 
+	option := session.Options{
+		SharedConfigState: session.SharedConfigEnable,
+	}
 	endpoint := os.Getenv(constants.S3EndpointEnv)
 	forcePath := false
 	if strings.ToLower(os.Getenv(constants.S3ForcePathStyle)) == "true" {
 		forcePath = true
 	}
-
-	customResolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
-		if endpoint != "" {
-			return aws.Endpoint{
-				URL: endpoint,
-			}, nil
+	if endpoint != "" {
+		option.Config = aws.Config{
+			Endpoint:         aws.String(endpoint),
+			S3ForcePathStyle: aws.Bool(forcePath),
 		}
-		return aws.Endpoint{}, &aws.EndpointNotFoundError{}
-	})
-
-	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithEndpointResolverWithOptions(customResolver))
+	}
+	sess, err := session.NewSessionWithOptions(option)
 	if err != nil {
 		return bucket, err
 	}
-	client := s3.NewFromConfig(cfg, func(options *s3.Options) {
-		if endpoint != "" {
-			options.UsePathStyle = forcePath
-		}
-	})
-	downloader := s3manager.NewDownloader(client)
+	downloader := s3manager.NewDownloader(sess)
 	directory := kConfig.BuildContextDir
 	tarPath := filepath.Join(directory, constants.ContextTar)
 	if err := os.MkdirAll(directory, 0750); err != nil {
@@ -79,7 +72,7 @@ func (s *S3) UnpackTarFromBuildContext() (string, error) {
 	if err != nil {
 		return directory, err
 	}
-	_, err = downloader.Download(context.TODO(), file,
+	_, err = downloader.Download(file,
 		&s3.GetObjectInput{
 			Bucket: aws.String(bucket),
 			Key:    aws.String(item),
