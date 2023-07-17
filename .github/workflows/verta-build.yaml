@@ -76,7 +76,7 @@ jobs:
       - name: Build and push Docker image to ECR
         uses: docker/build-push-action@v4
         if: "!(steps.should_publish.outputs.targets == '')"
-        env: 
+        env:
           DOCKER_BUILDKIT: "1"
         with:
           # context: .
@@ -86,6 +86,7 @@ jobs:
           #  VERSION=${{ steps.image_info.outputs.tag }}
           tags: |
             ${{ env.ECR_REPOSITORY }}:${{ steps.image_info.outputs.tag }}
+          target: kaniko-executor
 
       - name: Configure AWS credentials for us-west-2
         # external components should mirror every merge to verta/main
